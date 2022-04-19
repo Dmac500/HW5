@@ -27,9 +27,13 @@ class Server(paramiko.ServerInterface):
   def check_channel_request(self ,kind, chanid):
     if kind == 'session':
       return paramiko.OPEN_SUCCEEDED
-  def check_auth_none(self,username):
-    # if username == 'dill':
-      return paramiko.AUTH_SUCCESSFUL
+  # def check_auth_none(self,username):
+  #   # if username == 'dill'
+  #     return paramiko.AUTH_SUCCESSFUL
+  def check_auth_password(self,username, password):
+      print("we are asking for the password and need to figure out how to do it here")
+      if password == "password":
+        return paramiko.AUTH_SUCCESSFUL
   def check_auth_publickey(self, username, key):
     return paramiko.AUTH_SUCCESSFUL
   def check_channel_shell_request(self ,channel):
@@ -50,7 +54,7 @@ def main():
     try:
       sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
       sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-      sock.bind(("", 22))
+      sock.bind(("127.0.0.1", 2200))
       print("we binded that socket")
     except Exception as e:
       print("*** Bind failed: " + str(e))
@@ -85,25 +89,29 @@ def main():
         print("*** SSH negotiation failed.")
         sys.exit(1)
       chan = t.accept(20)
+      
       if chan is None:
         print("*** No channel.")
         sys.exit(1)
       print("Authenticated!")
-
+      chan.settimeout(60)
       server.event.wait(10)
       if not server.event.is_set():
         print("*** Client never asked for a shell.")
         sys.exit(1)
-      chan.send("\r\n\r\nWelcome to my dorky little BBS!\r\n\r\n")
-      chan.send(
-        "We are on fire all the time!  Hooray!  Candy corn for everyone!\r\n"
-      )
-      chan.send("Happy birthday to Robot Dave!\r\n\r\n")
-      chan.send("Username: ")
-      f = chan.makefile("rU")
-      username = f.readline().strip("\r\n")
-      chan.send("\r\nI don't like you, " + username + ".\r\n")
-      #chan.close()
+      for i in range(5):
+        chan.send("dylanmccarthy@10.40.213.155's Password:")
+        f = chan.makefile("rU")
+        command = f.readline().strip("\r\n")
+      running = True
+      chan.send("\r\n\r\nWelcome to the sever\r\n\r\n")
+      chan.send( "Time to test input!\r\n" )
+      while running:
+        chan.send("john@honeypot:/$ ")
+        f = chan.makefile("rU")
+        command = f.readline().strip("\r\n")
+        print(command)
+      chan.close()
       
       # t.start_server(server=server)
     except Exception as e:
