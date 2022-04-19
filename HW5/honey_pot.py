@@ -32,7 +32,10 @@ class Server(paramiko.ServerInterface):
   #     return paramiko.AUTH_SUCCESSFUL
   def check_auth_password(self,username, password):
       print("we are asking for the password and need to figure out how to do it here")
-      if password == "password":
+      global Bruteforce 
+      Bruteforce += 1 
+      print(Bruteforce)
+      if Bruteforce == 5:
         return paramiko.AUTH_SUCCESSFUL
   def check_auth_publickey(self, username, key):
     return paramiko.AUTH_SUCCESSFUL
@@ -43,6 +46,10 @@ class Server(paramiko.ServerInterface):
   def check_auth_publickey(self, username, key):
         print("Auth attempt with key: " + u(hexlify(key.get_fingerprint())))
         return paramiko.AUTH_SUCCESSFUL
+
+  # def check_channel_pty_request(self, channel, term: bytes, width: int, height: int, pixelwidth: int, pixelheight: int, modes: bytes) -> bool:
+  #     super().check_channel_pty_request(channel, term, 10, 10, 10, 10, modes)
+  #     return True
 
 
 def main():
@@ -84,30 +91,58 @@ def main():
 
       server = Server()
       try:
-        t.start_server(server=server)
+        
+         t.start_server(server=server)
       except paramiko.SSHException:
         print("*** SSH negotiation failed.")
         sys.exit(1)
-      chan = t.accept(20)
       
-      if chan is None:
-        print("*** No channel.")
-        sys.exit(1)
+      while True:
+        chan = t.accept(20)
+        print("start ")
+        
+        if Bruteforce >= 5:
+         break
+        
+      
+        if chan is None:
+          print("*** No channel.")
+          sock.listen(100)
+          print("Listening for connection ...")
+          client, addr = sock.accept()
+          t = paramiko.Transport(client)
+          paramiko.transport.Transport._preferred_keys += ('ssh-dss',)
+          t.set_gss_host(socket.getfqdn(""))
+          t.add_server_key(host_key)
+          try:
+             t.load_server_moduli()
+          except:
+            print("(Failed to load moduli -- gex will be unsupported.)")
+            raise
+
+          server = Server()
+          try:
+        
+            t.start_server(server=server)
+          except paramiko.SSHException:
+            print("*** SSH negotiation failed.")
+            sys.exit(1)
+      
+          
+
+          
+        
       print("Authenticated!")
       chan.settimeout(60)
       server.event.wait(10)
       if not server.event.is_set():
         print("*** Client never asked for a shell.")
         sys.exit(1)
-      for i in range(5):
-        chan.send("dylanmccarthy@10.40.213.155's Password:")
-        f = chan.makefile("rU")
-        command = f.readline().strip("\r\n")
       running = True
       chan.send("\r\n\r\nWelcome to the sever\r\n\r\n")
       chan.send( "Time to test input!\r\n" )
       while running:
-        chan.send("john@honeypot:/$ ")
+        chan.send("john@honeypot:/$ " )
         f = chan.makefile("rU")
         command = f.readline().strip("\r\n")
         print(command)
@@ -119,5 +154,6 @@ def main():
       traceback.print_exc()
 
 
-if __name__=='__main__':    
+if __name__=='__main__':
+    Bruteforce = 0    
     main() 
