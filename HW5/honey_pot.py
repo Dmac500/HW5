@@ -6,6 +6,7 @@ import socket
 import traceback
 import sys
 import base64
+import pathlib
 from binascii import hexlify
 
 paramiko.util.log_to_file("demo_server.log")
@@ -31,12 +32,17 @@ class Server(paramiko.ServerInterface):
   #   # if username == 'dill'
   #     return paramiko.AUTH_SUCCESSFUL
   def check_auth_password(self,username, password):
-      print("we are asking for the password and need to figure out how to do it here")
-      global Bruteforce 
-      Bruteforce += 1 
-      print(Bruteforce)
-      if Bruteforce == 5:
-        return paramiko.AUTH_SUCCESSFUL
+      username =str(username)
+      if str(username) == "Amir71" or str(username) == "devin43" or str(username) == "joy67" or str(username) == "mike134" or str(username) =="sarah63":
+        print(username)
+          #return paramiko.AUTH_FAILED 
+        global Username
+        Username = username
+        global Bruteforce 
+        Bruteforce += 1 
+        print(Bruteforce)
+        if Bruteforce == 5:
+          return paramiko.AUTH_SUCCESSFUL
   def check_auth_publickey(self, username, key):
     return paramiko.AUTH_SUCCESSFUL
   def check_channel_shell_request(self ,channel):
@@ -133,6 +139,12 @@ def main():
           
         
       print("Authenticated!")
+      path = pathlib.Path("root/")
+      path.mkdir(parents=True,exist_ok=True)
+      # (path / "apple.txt").write_text("this is apple1")
+      # (path / "apple2.txt").write_text("this is apple2")
+      # (path / "apple3.txt").write_text("this is apple3")
+      
       chan.settimeout(60)
       server.event.wait(10)
       if not server.event.is_set():
@@ -142,10 +154,38 @@ def main():
       chan.send("\r\n\r\nWelcome to the sever\r\n\r\n")
       chan.send( "Time to test input!\r\n" )
       while running:
-        chan.send("john@honeypot:/$ " )
+        chan.send(Username+"@honeypot:/$ " )
         f = chan.makefile("rU")
         command = f.readline().strip("\r\n")
-        print(command)
+        if command == "ls":
+          x = list(path.glob("**/*.txt"))
+          for i in x:
+            name  = str(i).split("/")
+            chan.send(str(name[1]) + "  ")
+          chan.send("\r\n")
+        getCommand = str(command).split(" ")
+        print(getCommand)
+        if getCommand[0] == "cat":
+          if pathlib.PurePath(getCommand[1]).suffix == "":
+            chan.send("Unknown file extension \r\n")
+          else:
+            file = path / getCommand[1]
+            if file.exists():
+              with file.open() as f:
+                chan.send(f.readline())
+              chan.send("\r\n")
+            else:
+              chan.send("File " + getCommand[1] + " not found\r\n")
+        if getCommand[0] == "cp":
+            file = path / getCommand[1]
+            if file.exists():
+              print("make it into file")
+              with file.open() as f:
+                print("try to make a new file")
+                (path / getCommand[2]).write_text(f.readline())
+            else:
+              chan.send("File " + getCommand[1] + " not found\r\n")
+
       chan.close()
       
       # t.start_server(server=server)
@@ -155,5 +195,6 @@ def main():
 
 
 if __name__=='__main__':
-    Bruteforce = 0    
+    Bruteforce = 0
+    Username = ""    
     main() 
